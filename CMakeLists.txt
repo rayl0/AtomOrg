@@ -6,7 +6,8 @@ find_package(SDL2 REQUIRED)
 add_executable(AtomOrg src/atomorg/main.cpp)
 
 target_include_directories(AtomOrg PUBLIC
-	.
+	src/
+  src/atomorg/
 	${SDL2_INCLUDE_DIRECTORIES}
 	)
 

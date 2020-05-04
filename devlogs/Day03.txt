@@ -1,0 +1,7 @@
+# Player moving implemented
+# Tex coords are calculated automatically
+# Transaltion and scaling matrix functions implemented
+# Added character moving animation but still some functionality to add.
+# Completed character movement code, have to add some ease in moment.
+# Successfuly compressed code first time and really enjoyed it. Orient your thinking COP.
+
