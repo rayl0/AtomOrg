@@ -18,3 +18,9 @@ target_link_libraries(AtomOrg PUBLIC
 target_link_libraries(AtomOrg PUBLIC
 	GL
 	)
+
+if(${CMAKE_BUILD_TYPE} MATCHES "Debug")
+target_compile_options(AtomOrg PUBLIC
+	-pg
+	)
+endif()

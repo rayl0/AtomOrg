@@ -1,0 +1,10 @@
+5 May, 2020.
+
+# Compressed the orthographic projection matrix code
+# Compressed the shader loading and creating code
+# Started creating a in game tile map editor
+# Created the first panel as a form of simple quad with simple transparency.
+# Motion for every sprite for now is going to be centre relative
+# Mouse toggling for the sprite
+# Compressed the code for rendering ui elements
+# Flipped the coordinate system back to the top-left cornor 
