@@ -11,208 +11,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-typedef int8_t s8;
-typedef uint8_t u8;
-
-typedef u8 ubyte;
-typedef u8 b32;
-
-typedef int32_t s32;
-typedef int64_t s64;
-
-typedef uint32_t u32;
-typedef uint64_t u64;
-
-typedef float r32;
-typedef double r64;
-
-#define ATOM_DEBUG
-
-#if defined(ATOM_DEBUG)
-#define Assert(x) { if(!(x)) { fprintf(stderr, "Assertion failed: %s\n In File: %s at line: %i\n", #x, __FILE__, __LINE__); *(u8*)0 = 1; } }
-#else
-#define Assert(x)
-#endif
-
-struct m3
-{
-    union {
-        struct
-        {
-            r32 a00, a01, a02;
-            r32 a10, a11, a12;
-            r32 a20, a21, a22;
-        };
-        r32 Data[9];
-    };
-
-    r32 operator[](s32 i) {
-        return Data[i];
-    }
-};
-
-inline m3
-M3(r32 r) {
-    m3 n;
-
-    n.a00 = r;
-    n.a11 = r;
-    n.a22 = r;
-
-    n.a01 = 0;
-    n.a02 = 0;
-
-    n.a10 = 0;
-    n.a12 = 0;
-
-    n.a20 = 0;
-    n.a21 = 0;
-
-    return n;
-}
-
-m3 operator*(m3& f, m3& s)
-{
-    m3 Final = M3(0);
-
-    Final.a00 = f.a00 * s.a00 + f.a01 * s.a10 + f.a02 * s.a20;
-    Final.a01 = f.a00 * s.a01 + f.a01 * s.a11 + f.a02 * s.a21;
-    Final.a02 = f.a00 * s.a02 + f.a01 * s.a12 + f.a02 * s.a22;
-
-    Final.a10 = f.a10 * s.a00 + f.a11 * s.a10 + f.a12 * s.a20;
-    Final.a11 = f.a10 * s.a01 + f.a11 * s.a11 + f.a12 * s.a21;
-    Final.a12 = f.a10 * s.a02 + f.a11 * s.a12 + f.a12 * s.a22;
-
-    Final.a20 = f.a20 * s.a00 + f.a21 * s.a10 + f.a22 * s.a20;
-    Final.a21 = f.a20 * s.a01 + f.a21 * s.a11 + f.a22 * s.a21;
-    Final.a22 = f.a20 * s.a02 + f.a21 * s.a12 + f.a22 * s.a22;
-
-    return Final;
-}
-
-inline m3
-m3Ortho(r32 Left, r32 Right, r32 Top, r32 Bottom)
-{
-    m3 Proj = M3(1.0f);
-
-    Proj.a00 = 2 / (Right - Left);
-    Proj.a20 = -(Right + Left) / (Right - Left);
-
-    Proj.a11 = 2 / (Bottom - Top);
-    Proj.a21 = -(Bottom + Top) / (Bottom - Top);
-
-    Proj.a22 = 1;
-
-    return Proj;
-}
-
-struct v2
-{
-    union
-    {
-        struct
-        {
-            r32 x, y;
-        };
-        r32 Data[2];
-    };
-};
-
-inline v2
-V2(r32 x, r32 y) {
-    v2 n;
-
-    n.x = x;
-    n.y = y;
-
-    return n;
-}
-
-struct c3
-{
-    union {
-        struct {
-            r32 r, g, b;
-        };
-        r32 Data[3];
-    };
-};
-
-inline c3
-C3(u32 r, u32 g, u32 b)
-{
-    c3 n;
-
-    n.r = r / 256.0f;
-    n.g = g / 256.0f;
-    n.b = b / 256.0f;
-
-    return n;
-}
-
-inline c3
-C3(r32 r, r32 g, r32 b)
-{
-    c3 n;
-
-    n.r = r;
-    n.g = g;
-    n.b = b;
-
-    return n;
-}
-
-struct v4
-{
-    union
-    {
-        struct
-        {
-            v2 min;
-            v2 max;
-        };
-        struct
-        {
-            r32 x, y, z, w;
-        };
-        r32 Data[4];
-    };
-};
-
-inline v4
-V4(r32 x, r32 y, r32 z, r32 w)
-{
-    v4 n;
-
-    n.x = x;
-    n.y = y;
-    n.z = z;
-    n.w = w;
-
-    return n;
-}
-
-inline
-m3 m3Translate(m3& m, v2 v)
-{
-    m3 Translation = M3(1.0f);
-
-    Translation.a20 = v.x;
-    Translation.a21 = v.y;
-
-    return Translation * m;
-}
-
-inline m3
-m3Scale(m3& m, v2 v)
-{
-    m3 Scale = M3(1.0f);
-
-    Scale.a00 = v.x;
-    Scale.a11 = v.y;
-
-    return Scale * m;
-}
+#include "atomorg.h"
+#include "atom_math.h"
 
 u32
 CreateGLBuffer(u32 Type, u32 Size, void* Data, u32 Usage)
@@ -278,16 +78,45 @@ CreateShader(char* File)
     return Program;
 }
 
-struct ui_render_ctx
+struct texture
+{
+    u32 Id;
+    s32 w, h;
+    s32 n;
+};
+
+texture
+CreateTexture(char* File)
+{
+    texture Texture;
+    glGenTextures(1, &Texture.Id);
+    glBindTexture(GL_TEXTURE_2D, Texture.Id);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    s32 w, h, n;
+
+    ubyte* PixelData = stbi_load(File, &w, &h, &n, 0);
+
+    Texture.w = w;
+    Texture.h = h;
+    Texture.n = n;
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, PixelData);
+
+    return Texture;
+}
+
+struct render_ctx
 {
     u32 VertexBuffer;
     u32 VertexArray;
     u32 IndexBuffer;
-    u32 Shader;
 }static ctx;
 
 void
-CreateUIRenderCtx()
+InitRenderCtx()
 {
     glGenVertexArrays(1, &ctx.VertexArray);
     glBindVertexArray(ctx.VertexArray);
@@ -302,52 +131,83 @@ CreateUIRenderCtx()
 
     ctx.IndexBuffer = CreateGLBuffer(GL_ELEMENT_ARRAY_BUFFER, sizeof(IndexData), IndexData, GL_STATIC_DRAW);
 
-    ctx.Shader = CreateShader("./shaders/UIQuad.shader");
-
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void*)(sizeof(r32) * 8));
 
-    m3 Model = M3(1.0f);
-
-    Model = m3Translate(Model, V2(100, 100));
-    Model = m3Scale(Model, V2(200, 400));
-
-    glUniformMatrix3fv(glGetUniformLocation(ctx.Shader, "model"), 1, GL_FALSE, Model.Data);
-
-    glUniform3f(glGetUniformLocation(ctx.Shader, "color"), 0.2, 0.2, 0.2);
-    glUniform1f(glGetUniformLocation(ctx.Shader, "alpha"), 0.5);
-    glUniform1f(glGetUniformLocation(ctx.Shader, "use_texture"), 0);
-
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    glUseProgram(0);
+}
+
+struct ui_render_ctx
+{
+    u32 Shader;
+}static uictx;
+
+void
+UIInitRenderCtx()
+{
+    uictx.Shader = CreateShader("./shaders/UIQuad.shader");
 }
 
 void
-RenderUIQuad(c3 Color, r32 Alpha, u32 Texture, u32 UseTexture, v4 DestRect)
+UISetRenderParams(c3 Color, r32 Alpha, u32 Texture,
+                  u32 UseTexture, v4 DestRect, v4 *ScissorRect)
 {
-    glBindVertexArray(ctx.VertexArray);
-    glBindBuffer(GL_ARRAY_BUFFER, ctx.VertexBuffer);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ctx.IndexBuffer);
-    glUseProgram(ctx.Shader);
+    glUseProgram(uictx.Shader);
 
-    glUniform1f(glGetUniformLocation(ctx.Shader, "use_texture"), UseTexture);
-    glUniform1f(glGetUniformLocation(ctx.Shader, "alpha"), Alpha);
-    glUniform3f(glGetUniformLocation(ctx.Shader, "color"), Color.r, Color.g, Color.b);
+    glUniform3f(glGetUniformLocation(uictx.Shader, "color"), Color.r, Color.g, Color.b);
+    glUniform1f(glGetUniformLocation(uictx.Shader, "alpha"), Alpha);
+    glUniform1f(glGetUniformLocation(uictx.Shader, "use_texture"), UseTexture);
 
     m3 Model = M3(1.0f);
     Model = m3Translate(Model, DestRect.min);
     Model = m3Scale(Model, DestRect.max);
 
-    glUniformMatrix3fv(glGetUniformLocation(ctx.Shader, "model"), 1, GL_FALSE, Model.Data);
+    glUniformMatrix3fv(glGetUniformLocation(uictx.Shader, "model"), 1, GL_FALSE, Model.Data);
 
     if(UseTexture > 0.5f)
         glBindTexture(GL_TEXTURE_2D, Texture);
 
+    if(ScissorRect != NULL)
+    {
+        glEnable(GL_SCISSOR_TEST);
+        glScissor(ScissorRect->x, 576 - (ScissorRect->y + ScissorRect->w), ScissorRect->z, ScissorRect->w);
+    }
+}
+
+void
+UISetRenderParams(c3 Color, r32 Alpha, u32 Texture,
+                  u32 UseTexture, v4 DestRect)
+{
+    UISetRenderParams(Color, Alpha, Texture, UseTexture, DestRect, NULL);
+}
+
+void
+RenderQuad()
+{
+    glBindVertexArray(ctx.VertexArray);
+    glBindBuffer(GL_ARRAY_BUFFER, ctx.VertexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ctx.IndexBuffer);
+
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
+}
+
+void
+RenderUIQuad(c3 Color, r32 Alpha, u32 Texture, u32 UseTexture, v4 DestRect, v4 *ScissorRect)
+{
+    UISetRenderParams(Color, Alpha, Texture, UseTexture, DestRect, ScissorRect);
+    RenderQuad();
+    if(ScissorRect)
+        glDisable(GL_SCISSOR_TEST);
+}
+
+void
+RenderUIQuad(c3 Color, r32 Alpha, u32 Texture, u32 UseTexture, v4 DestRect)
+{
+    RenderUIQuad(Color, Alpha, Texture, UseTexture, DestRect, NULL);
 }
 
 void
@@ -362,6 +222,59 @@ RenderUIQuad(u32 Texture, r32 Alpha, v4 DestRect)
     RenderUIQuad(C3(0u, 0u, 0u), Alpha, Texture, 1, DestRect);
 }
 
+void
+RenderUIQuad(u32 Texture, v4 DestRect, v4 ScissorRect)
+{
+    RenderUIQuad(C3(0u, 0u, 0u), 1.0f, Texture, 1.0f, DestRect, &ScissorRect);
+}
+
+file_params
+GetFileParams(char* Path)
+{
+    file_params Params;
+
+    struct stat FileState;
+    stat(Path, &FileState);
+
+    Params.Size = FileState.st_size;
+    Params.Exists = (Params.Size == 0) ? 0 : 1;
+
+    return Params;
+}
+
+s32
+LoadFileRaw(char* Path, void* Buffer)
+{
+    if(Buffer)
+    {
+        s32 FileHandle;
+        FileHandle = open(Path, O_RDONLY);
+
+        file_params Params = GetFileParams(Path);
+
+        if(Params.Size == 0)
+            return -1;
+
+        read(FileHandle, Buffer, Params.Size);
+
+        return 0;
+    }
+
+    return -1;
+}
+
+s32
+LoadFile(char* Path, char* Buffer)
+{
+    s32 err = LoadFileRaw(Path, Buffer);
+
+    file_params Params = GetFileParams(Path);
+
+    if(!err)
+        Buffer[Params.Size + 1] = '\0';
+
+    return err;
+}
 
 // TODO(rajat): May want to load GL functions ourselves
 
@@ -386,41 +299,12 @@ int main(int argc, char** argv)
 
     fprintf(stderr, "%s\n", glGetString(GL_VERSION));
 
-    u32 VertexArray;
-    glGenVertexArrays(1, &VertexArray);
-    glBindVertexArray(VertexArray);
-
-    r32 VertexData[8] = {0, 0, 0, 1, 1, 1, 1, 0};
-
-    u32 VertexBuffer = CreateGLBuffer(GL_ARRAY_BUFFER,
-                                      sizeof(r32) * 16, NULL, GL_DYNAMIC_DRAW);
-
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(r32) * 8, VertexData);
-
-    u32 IndexData[6] = {0, 1, 2, 2, 3, 0};
-
-    u32 IndexBuffer = CreateGLBuffer(GL_ELEMENT_ARRAY_BUFFER,
-                                     sizeof(IndexData), IndexData,
-                                     GL_STATIC_DRAW);
+    InitRenderCtx();
 
     u32 Program = CreateShader("./shaders/SimpleQuad.shader");
 
     // NOTE(rajat): Different platforms may have different glsl versions.
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void*)(sizeof(r32) * 8));
-
     m3 Proj = m3Ortho(0, 1024, 576, 0);
-
-    for(s32 i = 0; i < 3; ++i)
-    {
-        for(s32 j = 0; j < 3; ++j)
-        {
-            fprintf(stderr, "%f ", Proj.Data[i * 3 + j]);
-        }
-        fprintf(stderr, "\n");
-    }
 
     m3 Model = M3(1.0f);
 
@@ -433,26 +317,16 @@ int main(int argc, char** argv)
     u32 ModelLoc = glGetUniformLocation(Program, "model");
     glUniformMatrix3fv(ModelLoc, 1, GL_FALSE, Model.Data);
 
-    u32 PlayerSheet;
-    glGenTextures(1, &PlayerSheet);
-    glBindTexture(GL_TEXTURE_2D, PlayerSheet);
+    texture PlayerSheet = CreateTexture("./assets/Player.png");
+    texture TileSheet = CreateTexture("./assets/Tiles.png");
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    s32 w, h, n;
-
-    ubyte* PixelData = stbi_load("./assets/Player.png", &w, &h, &n, 0);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, PixelData);
-
-    printf("{w: %i, h: %i}\n", w, h);
+    r32 w = PlayerSheet.w;
+    r32 h = PlayerSheet.h;
 
 #if 1
-    CreateUIRenderCtx();
-    glUniformMatrix3fv(glGetUniformLocation(ctx.Shader, "proj"), 1, GL_FALSE, Proj.Data);
+    UIInitRenderCtx();
+    glUniformMatrix3fv(glGetUniformLocation(uictx.Shader, "proj"), 1, GL_FALSE, Proj.Data);
 #endif
-
 
     r32 TexCoords[16][8];
 
@@ -471,7 +345,6 @@ int main(int argc, char** argv)
         }
     }
 
-    glBufferSubData(GL_ARRAY_BUFFER, sizeof(r32) * 8, sizeof(r32) * 8, TexCoords[0]);
 
     SDL_Event e;
 
@@ -481,6 +354,15 @@ int main(int argc, char** argv)
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+    game_state GameState = {};
+    game_input GameInput = {};
+
+    platform_api PlatformAPI = {};
+
+    PlatformAPI.GetFileParams = GetFileParams;
+    PlatformAPI.LoadFile = LoadFile;
+    PlatformAPI.LoadFileRaw = LoadFileRaw;
+
     r32 x = 0;
     r32 y = 0;
 
@@ -489,10 +371,23 @@ int main(int argc, char** argv)
 
     b32 PlayerStop = 0;
 
-    s32 MouseX;
-    s32 MouseY;
+    s32 MouseX = 0;
+    s32 MouseY = 0;
 
-    b32 Drag;
+    b32 Drag = false;
+
+    v4 HitBox[16];
+
+    for(s32 j = 0; j < 4; ++j)
+    {
+        for(s32 i = 0; i < 4; ++i)
+        {
+            HitBox[j * 4 + i] = V4(i * 64.0f, j * 64.0f, i * 64.0f + 64.0f, j * 64.0f + 64.0f);
+        }
+    }
+
+    v4 QuadList[50];
+    u32 TexCoordIndexList[50];
 
     while(IsRunning)
     {
@@ -511,8 +406,15 @@ int main(int argc, char** argv)
                 Dir = 12;
         }
 
-        while(SDL_PollEvent(&e))
+        while(SDL_PollEvent(&e) != 0)
         {
+            b32 Hold = GameInput.Pointer.Hold;
+            v2 at = GameInput.Pointer.at;
+
+            GameInput = {};
+            GameInput.Pointer.Hold = Hold;
+            GameInput.Pointer.at = at;
+
             switch(e.type)
             {
             case SDL_QUIT:
@@ -584,20 +486,24 @@ int main(int argc, char** argv)
             case SDL_MOUSEMOTION: {
                 MouseX = e.motion.x;
                 MouseY = e.motion.y;
+
+                GameInput.Pointer.x = e.motion.x;
+                GameInput.Pointer.y = e.motion.y;
             }   break;
             case SDL_MOUSEBUTTONUP: {
-                Drag = true;
+                GameInput.Pointer.Hold = false;
+                GameInput.Pointer.Hit = true;
             }   break;
             case SDL_MOUSEBUTTONDOWN: {
-                Drag = false;
+                GameInput.Pointer.Hold = true;
             }   break;
             }
         }
-        glBindVertexArray(VertexArray);
-        glBindBuffer(GL_ARRAY_BUFFER, VertexBuffer);
-        glUseProgram(Program);
 
+        glBindBuffer(GL_ARRAY_BUFFER, ctx.VertexBuffer);
         glBufferSubData(GL_ARRAY_BUFFER, sizeof(r32) * 8, sizeof(r32) * 8, TexCoords[Dir]);
+
+        glUseProgram(Program);
 
         m3 Model = M3(1.0f);
 
@@ -605,17 +511,41 @@ int main(int argc, char** argv)
         Model = m3Scale(Model, V2(64, 64));
 
         glUniformMatrix3fv(ModelLoc, 1, GL_FALSE, Model.Data);
+        glBindTexture(GL_TEXTURE_2D, PlayerSheet.Id);
 
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffer);
-        glBindTexture(GL_TEXTURE_2D, PlayerSheet);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
+        RenderQuad();
 
-        glUseProgram(ctx.Shader);
-        u32 MatrixLoc = glGetUniformLocation(ctx.Shader, "proj");
+        r32 ATexCoords[8] = {0, 0, 0, 1, 1, 1, 1, 0};
+        glBufferSubData(GL_ARRAY_BUFFER, sizeof(r32) * 8, sizeof(r32) * 8, ATexCoords);
+
+        glUseProgram(uictx.Shader);
+
+        u32 MatrixLoc = glGetUniformLocation(uictx.Shader, "proj");
         glUniformMatrix3fv(MatrixLoc, 1, GL_FALSE, Proj.Data);
 
-        RenderUIQuad(C3(0.2f, 0.2f, 0.2f), 1.0f, V4(100, 100, 200, 400));
-        RenderUIQuad(PlayerSheet, 1.0f, V4(100, 100, 200, 400));
+        RenderUIQuad(C3(0.2f, 0.2f, 0.2f), 1.0f, V4(100, 100, 256, 256));
+
+        // TODO(rajat): Send the whole texture data to the draw calls to support clipping.
+        RenderUIQuad(TileSheet.Id, V4(100, 100, TileSheet.w, TileSheet.h), V4(100, 100, 256, 256));
+
+        static r32 Selected = -1;
+
+        for(s32 i = 0; i < 16; ++i)
+        {
+            if((100 + HitBox[i].min.x < MouseX && (100 + HitBox[i].max.x) > MouseX) &&
+               (100 + HitBox[i].min.y < MouseY && (100 + HitBox[i].max.y) > MouseY))
+            {
+                Selected = i;
+            }
+        }
+
+        if(Drag)
+        {
+            glBindBuffer(GL_ARRAY_BUFFER, ctx.VertexBuffer);
+            glBufferSubData(GL_ARRAY_BUFFER, sizeof(r32) * 8, sizeof(r32) * 8, TexCoords[(s32)Selected]);
+
+            RenderUIQuad(PlayerSheet.Id, Selected, V4(MouseX, MouseY, HitBox[0].max.x, HitBox[0].max.y));
+        }
 
         SDL_GL_SwapWindow(Window);
 

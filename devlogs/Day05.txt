@@ -1,0 +1,6 @@
+May 6, 2020.
+
+# Compressed and unified the code for rendering ui and sprites.
+# Implemented dragging for selecting tiles in the maps.
+# Started moving code between game and platform layer.
+
