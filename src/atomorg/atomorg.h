@@ -25,73 +25,17 @@ typedef double r64;
 #define Assert(x)
 #endif
 
-#ifdef __cpluscplus
-extern "C" {
-#endif
-
-#include "atom_math.h"
-
-typedef struct game_button
+struct file_params
 {
-    b32 EndedDown;
-}game_button;
-
-typedef struct game_input
-{
-    struct
-    {
-        union
-        {
-            struct
-            {
-                v2 at;
-            };
-            s32 x, y;
-        };
-        b32 Hit;
-        b32 Hold;
-    }Pointer;
-
-    union
-    {
-        struct
-        {
-            game_button MoveUp;
-            game_button MoveDown;
-            game_button MoveLeft;
-            game_button MoveRight;
-
-            game_button A;
-            game_button B;
-            game_button X;
-            game_button Y;
-
-            game_button Select;
-            game_button Start;
-        };
-    };
-}game_input;
-
-typedef struct game_state
-{
-}game_state;
-
-typedef struct file_params
-{
-    b32 Exists;
     u32 Size;
-}file_params;
+    b32 Exists;
+};
 
-typedef struct platform_api
-{
-    file_params (*GetFileParams)(char* Path);
-    s32 (*LoadFile)(char* Path, char* Buffer);
-    s32 (*LoadFileRaw)(char* Path, void* Buffer);
-}platform_api;
+extern file_params
+GetFileParams(char* Path);
 
-#define GAME_INIT(x) void x(game_state* State, platform_api* API);
-#define GAME_UPDATE_AND_RENDER(x) void x(game_state* State, game_input*Input);
+extern s32
+LoadFile(char* Path, char* Buffer);
 
-#ifdef __cpluscplus
-}
-#endif
+extern s32
+LoadFileRaw(char* Path, void* Buffer);

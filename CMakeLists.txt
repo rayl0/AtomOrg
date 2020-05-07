@@ -3,7 +3,8 @@ project(AtomOrg)
 
 find_package(SDL2 REQUIRED)
 
-add_executable(AtomOrg src/atomorg/main.cpp)
+add_executable(AtomOrg src/atomorg/main.cpp
+                       src/atomorg/linux_atom.cpp)
 
 target_include_directories(AtomOrg PUBLIC
 	src/
@@ -16,11 +17,13 @@ target_link_libraries(AtomOrg PUBLIC
 	)
 
 target_link_libraries(AtomOrg PUBLIC
+	m
 	GL
 	)
 
 if(${CMAKE_BUILD_TYPE} MATCHES "Debug")
 target_compile_options(AtomOrg PUBLIC
+	-g
 	-pg
 	)
 endif()

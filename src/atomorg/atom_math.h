@@ -180,3 +180,22 @@ m3Scale(m3& m, v2 v)
 
     return Scale * m;
 }
+
+inline b32
+HitTest(v4 Rect, v2 Point)
+{
+    if((Rect.min.x <= Point.x && Rect.min.x + Rect.max.x >= Point.x)
+       && (Rect.min.y <= Point.y && Rect.min.y + Rect.max.y >= Point.y))
+        return true;
+
+    return false;
+}
+
+inline v4&
+operator+(v4& a, r32 b)
+{
+    a.x += b;
+    a.y += b;
+    a.z += b;
+    a.w += b;
+}

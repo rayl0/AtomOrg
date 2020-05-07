@@ -29,16 +29,9 @@ CreateGLBuffer(u32 Type, u32 Size, void* Data, u32 Usage)
 u32
 CreateShader(char* File)
 {
-    s32 ShaderFileHandle = open(File, O_RDONLY);
-
-    Assert(ShaderFileHandle != -1);
-
-    struct stat ShaderFileStat;
-    stat(File, &ShaderFileStat);
-    char* Buffer = (char*)malloc(sizeof(char) * ShaderFileStat.st_size + 1);
-    Buffer[ShaderFileStat.st_size] = '\0';
-
-    read(ShaderFileHandle, Buffer, ShaderFileStat.st_size);
+    file_params Params = GetFileParams(File);
+    char* Buffer = (char*)malloc(sizeof(char) * Params.Size + 1);
+    LoadFile(File, Buffer);
 
     char* VertexShader = Buffer;
     char* End = Buffer;
@@ -73,7 +66,6 @@ CreateShader(char* File)
     glDeleteShader(FS);
 
     free(Buffer);
-    close(ShaderFileHandle);
 
     return Program;
 }
@@ -103,7 +95,12 @@ CreateTexture(char* File)
     Texture.h = h;
     Texture.n = n;
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, PixelData);
+    // TODO(rajat): Formats could be ARGB, fix it before shipping
+    s32 Format = GL_RGBA;
+    if(n == 3)
+        Format = GL_RGB;
+
+    glTexImage2D(GL_TEXTURE_2D, 0, Format, w, h, 0, Format, GL_UNSIGNED_BYTE, PixelData);
 
     return Texture;
 }
@@ -227,55 +224,6 @@ RenderUIQuad(u32 Texture, v4 DestRect, v4 ScissorRect)
 {
     RenderUIQuad(C3(0u, 0u, 0u), 1.0f, Texture, 1.0f, DestRect, &ScissorRect);
 }
-
-file_params
-GetFileParams(char* Path)
-{
-    file_params Params;
-
-    struct stat FileState;
-    stat(Path, &FileState);
-
-    Params.Size = FileState.st_size;
-    Params.Exists = (Params.Size == 0) ? 0 : 1;
-
-    return Params;
-}
-
-s32
-LoadFileRaw(char* Path, void* Buffer)
-{
-    if(Buffer)
-    {
-        s32 FileHandle;
-        FileHandle = open(Path, O_RDONLY);
-
-        file_params Params = GetFileParams(Path);
-
-        if(Params.Size == 0)
-            return -1;
-
-        read(FileHandle, Buffer, Params.Size);
-
-        return 0;
-    }
-
-    return -1;
-}
-
-s32
-LoadFile(char* Path, char* Buffer)
-{
-    s32 err = LoadFileRaw(Path, Buffer);
-
-    file_params Params = GetFileParams(Path);
-
-    if(!err)
-        Buffer[Params.Size + 1] = '\0';
-
-    return err;
-}
-
 // TODO(rajat): May want to load GL functions ourselves
 
 int main(int argc, char** argv)
@@ -318,7 +266,8 @@ int main(int argc, char** argv)
     glUniformMatrix3fv(ModelLoc, 1, GL_FALSE, Model.Data);
 
     texture PlayerSheet = CreateTexture("./assets/Player.png");
-    texture TileSheet = CreateTexture("./assets/Tiles.png");
+    texture TileSheet = CreateTexture("./assets/list.png");
+    texture TileSheet2 = CreateTexture("./assets/Tiles.png");
 
     r32 w = PlayerSheet.w;
     r32 h = PlayerSheet.h;
@@ -354,15 +303,6 @@ int main(int argc, char** argv)
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    game_state GameState = {};
-    game_input GameInput = {};
-
-    platform_api PlatformAPI = {};
-
-    PlatformAPI.GetFileParams = GetFileParams;
-    PlatformAPI.LoadFile = LoadFile;
-    PlatformAPI.LoadFileRaw = LoadFileRaw;
-
     r32 x = 0;
     r32 y = 0;
 
@@ -374,7 +314,7 @@ int main(int argc, char** argv)
     s32 MouseX = 0;
     s32 MouseY = 0;
 
-    b32 Drag = false;
+    b32 MouseHold = false;
 
     v4 HitBox[16];
 
@@ -382,12 +322,9 @@ int main(int argc, char** argv)
     {
         for(s32 i = 0; i < 4; ++i)
         {
-            HitBox[j * 4 + i] = V4(i * 64.0f, j * 64.0f, i * 64.0f + 64.0f, j * 64.0f + 64.0f);
+            HitBox[j * 4 + i] = V4(100 + i * 64.0f, 100 + j * 64.0f, 64.0f, 64.0f);
         }
     }
-
-    v4 QuadList[50];
-    u32 TexCoordIndexList[50];
 
     while(IsRunning)
     {
@@ -408,13 +345,6 @@ int main(int argc, char** argv)
 
         while(SDL_PollEvent(&e) != 0)
         {
-            b32 Hold = GameInput.Pointer.Hold;
-            v2 at = GameInput.Pointer.at;
-
-            GameInput = {};
-            GameInput.Pointer.Hold = Hold;
-            GameInput.Pointer.at = at;
-
             switch(e.type)
             {
             case SDL_QUIT:
@@ -486,16 +416,12 @@ int main(int argc, char** argv)
             case SDL_MOUSEMOTION: {
                 MouseX = e.motion.x;
                 MouseY = e.motion.y;
-
-                GameInput.Pointer.x = e.motion.x;
-                GameInput.Pointer.y = e.motion.y;
             }   break;
             case SDL_MOUSEBUTTONUP: {
-                GameInput.Pointer.Hold = false;
-                GameInput.Pointer.Hit = true;
+                MouseHold = false;
             }   break;
             case SDL_MOUSEBUTTONDOWN: {
-                GameInput.Pointer.Hold = true;
+                MouseHold = true;
             }   break;
             }
         }
@@ -523,23 +449,41 @@ int main(int argc, char** argv)
         u32 MatrixLoc = glGetUniformLocation(uictx.Shader, "proj");
         glUniformMatrix3fv(MatrixLoc, 1, GL_FALSE, Proj.Data);
 
-        RenderUIQuad(C3(0.2f, 0.2f, 0.2f), 1.0f, V4(100, 100, 256, 256));
+        v4 UIPanelBox = V4(100, 100, 256, 450);
+        v4 UIPanelHeaderBox = V4(UIPanelBox.x, UIPanelBox.y, UIPanelBox.z, 50);
+
+        RenderUIQuad(C3(0.2f, 0.2f, 0.2f), 1.0f, UIPanelBox);
+        RenderUIQuad(C3(0.2f, 0.8f, 0.4f), 1.0f, UIPanelHeaderBox);
+
+        v4 MoveBox = V4(UIPanelBox.x - (0.2 * UIPanelHeaderBox.z) / 2 + UIPanelHeaderBox.z / 2 ,
+                        UIPanelBox.y - (0.6 * UIPanelHeaderBox.w) / 2 + UIPanelHeaderBox.w / 2,
+                        0.2 * UIPanelHeaderBox.z, 0.6 * UIPanelHeaderBox.w);
+
+        RenderUIQuad(TileSheet.Id, 1.0f, MoveBox);
+
+        if(HitTest(MoveBox, V2(MouseX, MouseY)))
+        {
+            printf("hello hit!\n");
+        }
+
+        v4 UIScrollBox = V4(UIPanelBox.x, UIPanelBox.y, TileSheet2.w, TileSheet2.h);
+
+        RenderUIQuad(TileSheet2.Id, UIScrollBox, V4(MouseX, MouseY, TileSheet2.w, 400));
 
         // TODO(rajat): Send the whole texture data to the draw calls to support clipping.
-        RenderUIQuad(TileSheet.Id, V4(100, 100, TileSheet.w, TileSheet.h), V4(100, 100, 256, 256));
+        // RenderUIQuad(TileSheet.Id, V4(100, 100, TileSheet.w, TileSheet.h), V4(100, 100, 256, 256));
 
         static r32 Selected = -1;
 
         for(s32 i = 0; i < 16; ++i)
         {
-            if((100 + HitBox[i].min.x < MouseX && (100 + HitBox[i].max.x) > MouseX) &&
-               (100 + HitBox[i].min.y < MouseY && (100 + HitBox[i].max.y) > MouseY))
+            if(HitTest(HitBox[i], V2(MouseX, MouseY)))
             {
                 Selected = i;
             }
         }
 
-        if(Drag)
+        if(MouseHold)
         {
             glBindBuffer(GL_ARRAY_BUFFER, ctx.VertexBuffer);
             glBufferSubData(GL_ARRAY_BUFFER, sizeof(r32) * 8, sizeof(r32) * 8, TexCoords[(s32)Selected]);

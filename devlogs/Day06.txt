@@ -1,0 +1,10 @@
+May 7, 2020.
+
+# Due to fatigue wasnot able to do something useful in the code
+# just drawn some ui stuff.
+# deleted the atomorg.cpp file 
+# loaded a list icon for the game.
+# learned to only focus on programming while programming and not allow my brain to
+## ruminate those principles that are already coded in my head by heart.
+## because I kept watching them again and again. Don't ruminate your intuition will 
+## automatically apply those principles while you'll be working on the programming.
