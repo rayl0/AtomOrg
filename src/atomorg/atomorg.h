@@ -19,11 +19,19 @@ typedef double r64;
 
 #define ATOM_DEBUG
 
+#define ATOM_ENSURE(x, msg, ...) \
+    {                            \
+        if(!(x)) { fprintf(stderr, msg, __VA_ARGS__); *(u8*)0 = 1;}  \
+    }
+
 #if defined(ATOM_DEBUG)
-#define Assert(x) { if(!(x)) { fprintf(stderr, "Assertion failed: %s\n In File: %s at line: %i\n", #x, __FILE__, __LINE__); *(u8*)0 = 1; } }
+#define Assert(x) ATOM_ENSURE(x, "Assertion failed: %s\n In File: %s at line: %i\n", #x, __FILE__, __LINE__);
 #else
 #define Assert(x)
 #endif
+
+// Used in placing using malloc and os memory
+#define MEMORY_LEAK
 
 struct file_params
 {

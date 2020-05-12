@@ -198,4 +198,16 @@ operator+(v4& a, r32 b)
     a.y += b;
     a.z += b;
     a.w += b;
+
+    return a;
+}
+
+inline r32
+Clamp(r32 min, r32 v, r32 max)
+{
+    if(v < min)
+        return min;
+    if(v > max)
+        return max;
+    return v;
 }
